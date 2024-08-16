@@ -1,0 +1,70 @@
+# COPY and MODIFIED from https://gist.github.com/bismarckjunior/c11872b06d1071f2e0245801c8f72c3b
+# Main variables
+SRCDIR := 
+INCDIR := 
+BUILDDIR := build
+TARGET := bin/main
+
+# Other variables
+SOURCES := $(shell find $(SRCDIR) -type f -name "*.cpp")
+OBJECTS := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SOURCES:.cpp=.o))
+SOURCESCU := $(shell find $(SRCDIR) -type f -name "*.cu")
+OBJECTSCU := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SOURCESCU:.cu=.cu.o))
+TARGETDIR = `dirname $(TARGET)`
+
+# Compilers
+HOST_COMPILER := g++
+NVCC          := nvcc -ccbin $(HOST_COMPILER)  #/usr/local/cuda/bin/nvcc
+
+# Flags
+NVCCFLAGS     := -m64 -dc  #-dc used cg::grid_group, cg::this_group
+CCFLAGS       :=
+LDFLAGS       :=
+
+# Debug build flags
+ifeq ($(dbg),1)
+    NVCCFLAGS += -g -G
+    BUILD_TYPE := debug
+else
+    BUILD_TYPE := release
+endif
+
+# Main flags
+ALL_CCFLAGS := $(NVCCFLAGS)
+ALL_CCFLAGS += $(addprefix -Xcompiler ,$(CCFLAGS))
+ALL_LDFLAGS := $(ALL_CCFLAGS)
+ALL_LDFLAGS += $(addprefix -Xlinker ,$(LDFLAGS))
+
+# Includes and libraries
+INCLUDES      := $(addprefix -I ,$(shell find $(SRCDIR) -type d))
+LIBRARIES     := 
+
+ifneq ($(INCDIR),)
+	INCLUDES += -I $(INCDIR)
+endif
+
+# Target rules
+all: build
+
+build: $(TARGET)
+
+run: build
+	./$(TARGET)
+
+clean:
+	rm -fr $(OBJECTS) $(OBJECTSCU) $(TARGET)
+
+clobber:
+	rm -fr $(BUILDDIR) $(TARGETDIR)
+
+$(BUILDDIR)/%.cu.o: $(SRCDIR)/%.cu
+	@mkdir -p $(BUILDDIR);
+	$(NVCC) $(INCLUDES) $(ALL_CCFLAGS) -o $@ -c $<
+
+$(BUILDDIR)/%.o: $(SRCDIR)/%.cpp
+	@mkdir -p $(BUILDDIR);
+	$(NVCC) $(INCLUDES) $(ALL_CCFLAGS) -o $@ -c $<
+
+$(TARGET): $(OBJECTS) $(OBJECTSCU)
+	@mkdir -p $(TARGETDIR);
+	$(NVCC) $(ALL_LDFLAGS) -o $@ $+ $(LIBRARIES)
