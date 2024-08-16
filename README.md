@@ -7,8 +7,20 @@
 $ nvcc -o main main.cu
 ```
 
+or using `make`
+
+```
+$ make clean && make
+```
+
 ## Run
 
 ```
-$ ./main
+$ ./bin/main
+```
+
+or using `make`
+
+```
+$ make run
 ```
